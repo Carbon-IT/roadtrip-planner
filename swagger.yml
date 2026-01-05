@@ -21,10 +21,10 @@ paths:
             schema:
               type: object
               required:
-                - login
+                - username
                 - password
               properties:
-                login:
+                username:
                   type: string
                   example: admin@carbon-it.com
                 password:
