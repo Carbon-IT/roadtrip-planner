@@ -1,5 +1,9 @@
-// Randomize the order of countries
-export default function randomizeOrder(ids) {
+export interface OrderedCountry {
+  cca3: string;
+  order: number;
+}
+
+export default function randomizeOrder(ids: string[]): OrderedCountry[] {
   if (!Array.isArray(ids) || ids.length === 0) {
     return [];
   }
@@ -13,7 +17,7 @@ export default function randomizeOrder(ids) {
   }
 
   return ids.map((cca3, index) => ({
-    cca3: cca3,
+    cca3,
     order: orderArray[index],
   }));
 }

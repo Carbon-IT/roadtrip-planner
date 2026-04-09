@@ -1,4 +1,4 @@
-export const countryFields = [
+export const countryFields: string[] = [
   "area",
   "borders",
   "capital",
