@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { countryFields } from "../constants.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import { Country } from "../model/country.model.js";
 
 const router = Router();
 
@@ -14,9 +15,6 @@ interface PaginatedResponse<T> {
   data: T[];
 }
 
-interface CountryByCode {
-  cca3: string;
-}
 
 function parsePagination(
   rawPage: string | undefined,
@@ -50,7 +48,7 @@ router.get("/", authenticateToken, async (req: Request, res: Response) => {
       join(import.meta.dirname, "../../data/countries.json"),
       "utf8"
     );
-    const data = JSON.parse(raw) as unknown[];
+    const data = JSON.parse(raw) as Country[];
 
     const { page, pageSize } = parsePagination(
       req.query.page as string,
@@ -97,7 +95,7 @@ router.get("/name/:name", authenticateToken, async (req: Request, res: Response)
       return res.status(404).json({ message: "Country not found" });
     }
 
-    const data = (await response.json()) as unknown[];
+    const data = (await response.json()) as Country[];
 
     if (page > 0 && pageSize > 0) {
       return res.json(buildPaginatedResponse(data, page, pageSize));
@@ -134,7 +132,7 @@ router.get("/codes", authenticateToken, async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Countries not found for provided codes" });
     }
 
-    const data = (await response.json()) as CountryByCode[];
+    const data = (await response.json()) as Country[];
     const sorted = codeList.map((code) => data.find((c) => c.cca3 === code));
 
     res.json(sorted);

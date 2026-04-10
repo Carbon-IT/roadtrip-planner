@@ -7,49 +7,50 @@
 - **Framework**: Express 5
 - **Runner**: `tsx`
 - **Auth**: JWT via `jsonwebtoken`
-- **Data**: fichier JSON local (`data/roadtrip.json`)
+- **Data**: local JSON file (`data/roadtrip.json`)
 - **Docs**: Swagger UI (`/api-docs`)
 
-## Lancer le projet
+## Running the project
 
 ```bash
 # Requires a .env file with ACCESS_TOKEN_SECRET, LOGIN, PASSWORD
 npm start          # tsx src/index.ts
-npm run typecheck  # tsc --noEmit (vérification des types uniquement)
+npm run typecheck  # tsc --noEmit (type checking only)
 ```
 
 ## Structure
 
 ```
 src/
-  index.ts                    # Point d'entrée : app Express + montage des routes
-  constants.ts                # Champs exportés vers l'API restcountries
+  index.ts                    # Entry point: Express app + route mounting
+  constants.ts                # Fields exported to the restcountries API
   utils/
-    fileStorage.ts            # Lecture/écriture de data/roadtrip.json
-    randomizer.ts             # Fisher-Yates sur les pays (retourne OrderedCountry[])
+    fileStorage.ts            # Read/write data/roadtrip.json
+    randomizer.ts             # Fisher-Yates on countries (returns OrderedCountry[])
   model/
-    roadtrip.model.ts         # Classe Roadtrip (countries: string[])
+    country.model.ts          # Country interface (matches restcountries shape)
+    roadtrip.model.ts         # Roadtrip class (countries: string[])
   middleware/
-    auth.middleware.ts        # authenticateToken + déclaration globale Express.Request.user
+    auth.middleware.ts        # authenticateToken + global Express.Request.user declaration
   controllers/
     auth.controller.ts        # POST /api/login, POST /api/logout
     countries.controller.ts   # GET /api/countries, /name/:name, /codes, /codes/:code
-    roadtrip.controller.ts    # CRUD /api/roadtrip et /api/roadtrip/countries
+    roadtrip.controller.ts    # CRUD /api/roadtrip and /api/roadtrip/countries
 data/
-  countries.json              # Liste locale de pays (source de vérité pour GET /api/countries)
+  countries.json              # Local country list (source of truth for GET /api/countries)
 ```
 
 ## Conventions
 
-- Chaque controller exporte un `Router` Express monté dans `index.ts` via `/api/*`.
-- Les types de réponse partagés (ex. `PaginatedResponse<T>`) sont définis dans le controller qui les utilise.
-- La validation des variables d'environnement se fait au démarrage dans `index.ts` ; les controllers accèdent à `process.env` directement.
-- `import.meta.dirname` est utilisé pour résoudre les chemins fichiers absolus.
-- Les imports de modules locaux utilisent l'extension `.js` (obligatoire avec `moduleResolution: NodeNext`).
-- `tsconfig.json` a `noEmit: true` : TypeScript ne génère pas de fichiers `.js`. Le projet tourne entièrement via `tsx`.
+- Each controller exports an Express `Router` mounted in `index.ts` under `/api/*`.
+- Shared response types (e.g. `PaginatedResponse<T>`) are defined in the controller that uses them.
+- Environment variable validation happens at startup in `index.ts`; controllers access `process.env` directly.
+- `import.meta.dirname` is used to resolve absolute file paths.
+- Local module imports use the `.js` extension (required with `moduleResolution: NodeNext`).
+- `tsconfig.json` has `noEmit: true`: TypeScript does not generate `.js` files. The project runs entirely via `tsx`.
 
-## Données
+## Data
 
-- `data/countries.json` : liste locale de pays (source de vérité pour `GET /api/countries`)
-- `data/roadtrip.json` : créé automatiquement au démarrage si absent ; contient `{ countries: string[] }` (codes cca3) — ignoré par git
-- L'API externe `restcountries.com/v3.1` est utilisée pour les recherches par nom et par code.
+- `data/countries.json`: local country list (source of truth for `GET /api/countries`)
+- `data/roadtrip.json`: auto-created on startup if absent; contains `{ countries: string[] }` (cca3 codes) — git-ignored
+- The external API `restcountries.com/v3.1` is used for search by name and by code.
