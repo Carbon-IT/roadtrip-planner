@@ -1,7 +1,6 @@
 import { Request, Response, Router } from "express";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import { countryFields } from "../constants.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { Country } from "../model/country.model.js";
 
@@ -15,6 +14,18 @@ interface PaginatedResponse<T> {
   data: T[];
 }
 
+const countriesFilePath = join(import.meta.dirname, "../../data/countries.json");
+
+let countriesCache: Country[] | null = null;
+
+// Load the local country list once and cache it for subsequent requests.
+async function loadCountries(): Promise<Country[]> {
+  if (!countriesCache) {
+    const raw = await readFile(countriesFilePath, "utf8");
+    countriesCache = JSON.parse(raw) as Country[];
+  }
+  return countriesCache;
+}
 
 function parsePagination(
   rawPage: string | undefined,
@@ -24,6 +35,11 @@ function parsePagination(
     page: parseInt(rawPage ?? ""),
     pageSize: parseInt(rawPageSize ?? ""),
   };
+}
+
+// True when exactly one of page/pageSize is provided (invalid combination).
+function hasPartialPagination(page: number, pageSize: number): boolean {
+  return (!!page && !pageSize) || (!page && !!pageSize);
 }
 
 function buildPaginatedResponse<T>(
@@ -41,21 +57,25 @@ function buildPaginatedResponse<T>(
   };
 }
 
+// Case-insensitive partial match on common/official names only.
+function matchesName(country: Country, query: string): boolean {
+  const needle = query.toLowerCase();
+  const common = country.name?.common?.toLowerCase() ?? "";
+  const official = country.name?.official?.toLowerCase() ?? "";
+  return common.includes(needle) || official.includes(needle);
+}
+
 // GET /countries
 router.get("/", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const raw = await readFile(
-      join(import.meta.dirname, "../../data/countries.json"),
-      "utf8"
-    );
-    const data = JSON.parse(raw) as Country[];
+    const data = await loadCountries();
 
     const { page, pageSize } = parsePagination(
       req.query.page as string,
       req.query.pageSize as string
     );
 
-    if ((page && !pageSize) || (!page && pageSize)) {
+    if (hasPartialPagination(page, pageSize)) {
       return res.status(400).json({
         message: "Invalid pagination parameters. Provide both page and pageSize or none.",
       });
@@ -73,35 +93,28 @@ router.get("/", authenticateToken, async (req: Request, res: Response) => {
 
 // GET /countries/name/:name
 router.get("/name/:name", authenticateToken, async (req: Request, res: Response) => {
-  const { name } = req.params;
+  const name = String(req.params.name);
 
   const { page, pageSize } = parsePagination(
     req.query.page as string,
     req.query.pageSize as string
   );
 
-  if ((page && !pageSize) || (!page && pageSize) || isNaN(page) || isNaN(pageSize)) {
+  // Pagination is mandatory on this route: both params must be valid numbers.
+  if (hasPartialPagination(page, pageSize) || isNaN(page) || isNaN(pageSize)) {
     return res.status(400).json({
       message: "Invalid pagination parameters. Provide both page and pageSize or none.",
     });
   }
 
   try {
-    const response = await fetch(
-      `https://restcountries.com/v3.1/name/${encodeURIComponent(String(name))}?fields=${countryFields.join(",")}`
-    );
+    const data = (await loadCountries()).filter((country) => matchesName(country, name));
 
-    if (response.status === 404) {
+    if (!data.length) {
       return res.status(404).json({ message: "Country not found" });
     }
 
-    const data = (await response.json()) as Country[];
-
-    if (page > 0 && pageSize > 0) {
-      return res.json(buildPaginatedResponse(data, page, pageSize));
-    }
-
-    res.json(data);
+    return res.json(buildPaginatedResponse(data, page, pageSize));
   } catch {
     res.status(500).json({ message: "Failed to fetch country by name" });
   }
@@ -124,16 +137,15 @@ router.get("/codes", authenticateToken, async (req: Request, res: Response) => {
   }
 
   try {
-    const response = await fetch(
-      `https://restcountries.com/v3.1/alpha?codes=${codeList.join(",")}&fields=${countryFields.join(",")}`
-    );
+    const data = await loadCountries();
+    // Preserve the order requested by the client; unknown codes are dropped.
+    const sorted = codeList
+      .map((code) => data.find((c) => c.cca3.toUpperCase() === code.toUpperCase()))
+      .filter((c): c is Country => Boolean(c));
 
-    if (response.status === 404) {
+    if (!sorted.length) {
       return res.status(404).json({ message: "Countries not found for provided codes" });
     }
-
-    const data = (await response.json()) as Country[];
-    const sorted = codeList.map((code) => data.find((c) => c.cca3 === code));
 
     res.json(sorted);
   } catch (err) {
@@ -144,22 +156,22 @@ router.get("/codes", authenticateToken, async (req: Request, res: Response) => {
 
 // GET /countries/codes/:code
 router.get("/codes/:code", authenticateToken, async (req: Request, res: Response) => {
-  const { code } = req.params;
+  const code = String(req.params.code);
 
   if (code.length !== 3) {
     return res.status(400).json({ message: "Invalid code parameter" });
   }
 
   try {
-    const response = await fetch(
-      `https://restcountries.com/v3.1/alpha/${encodeURIComponent(String(code))}?fields=${countryFields.join(",")}`
+    const country = (await loadCountries()).find(
+      (c) => c.cca3 === code.toUpperCase()
     );
 
-    if (response.status === 404) {
+    if (!country) {
       return res.status(404).json({ message: "Country not found" });
     }
 
-    res.json(await response.json());
+    res.json(country);
   } catch {
     res.status(500).json({ message: "Failed to fetch country by code" });
   }
