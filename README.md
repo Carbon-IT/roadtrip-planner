@@ -4,7 +4,7 @@ Cette API vous fournira les données nécessaires pour la réalisation de l'exer
 
 ## 📦 Exigences
 
-- **Node.js v20.6+**
+- **Node.js v21+**
 - npm ou yarn
 
 ## 🚀 Instructions d'installation

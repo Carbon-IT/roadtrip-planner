@@ -1,26 +1,28 @@
 class Roadtrip {
-  constructor(countries) {
-    this.countries = countries;
+  countries: string[];
+
+  constructor(countries: string[]) {
     if (!Array.isArray(countries)) {
       throw new TypeError("Countries must be an array");
     }
+    this.countries = countries;
   }
 
-  addCountry(country) {
+  addCountry(country: string): void {
     if (!this.countries.includes(country)) {
       this.countries.push(country);
     }
   }
 
-  removeCountry(country) {
+  removeCountry(country: string): void {
     this.countries = this.countries.filter((c) => c !== country);
   }
 
-  getCountries() {
+  getCountries(): string[] {
     return this.countries;
   }
 
-  clearCountries() {
+  clearCountries(): void {
     this.countries = [];
   }
 }
